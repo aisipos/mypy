@@ -281,7 +281,7 @@ class MypyFile(SymbolNode):
         return {'.class': 'MypyFile',
                 '_name': self._name,
                 '_fullname': self._fullname,
-                'names': self.names.serialize(self._fullname),
+                'names': self.names.serialize(self._fullname) if self.names else None,
                 'is_stub': self.is_stub,
                 'path': self.path,
                 }
