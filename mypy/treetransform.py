@@ -11,8 +11,8 @@ from mypy.nodes import (
     OperatorAssignmentStmt, ExpressionStmt, AssignmentStmt, ReturnStmt,
     RaiseStmt, AssertStmt, DelStmt, BreakStmt, ContinueStmt,
     PassStmt, GlobalDecl, WhileStmt, ForStmt, IfStmt, TryStmt, WithStmt,
-    CastExpr, RevealTypeExpr, TupleExpr, GeneratorExpr, ListComprehension, ListExpr,
-    ConditionalExpr, DictExpr, SetExpr, NameExpr, IntExpr, StrExpr, BytesExpr,
+    CastExpr, RevealLocalsExpr, RevealTypeExpr, TupleExpr, GeneratorExpr, ListComprehension,
+    ListExpr, ConditionalExpr, DictExpr, SetExpr, NameExpr, IntExpr, StrExpr, BytesExpr,
     UnicodeExpr, FloatExpr, CallExpr, SuperExpr, MemberExpr, IndexExpr,
     SliceExpr, OpExpr, UnaryExpr, LambdaExpr, TypeApplication, PrintStmt,
     SymbolTable, RefExpr, TypeVarExpr, NewTypeExpr, PromoteExpr,
@@ -387,6 +387,9 @@ class TransformVisitor(NodeVisitor[Node]):
                         self.type(node.type))
 
     def visit_reveal_type_expr(self, node: RevealTypeExpr) -> RevealTypeExpr:
+        return RevealTypeExpr(self.expr(node.expr))
+
+    def visit_reveal_locals_expr(self, node: RevealLocalsExpr) -> RevealLocalsExpr:
         return RevealTypeExpr(self.expr(node.expr))
 
     def visit_super_expr(self, node: SuperExpr) -> SuperExpr:

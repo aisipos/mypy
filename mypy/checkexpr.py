@@ -14,7 +14,7 @@ from mypy.types import (
 from mypy.nodes import (
     NameExpr, RefExpr, Var, FuncDef, OverloadedFuncDef, TypeInfo, CallExpr,
     MemberExpr, IntExpr, StrExpr, BytesExpr, UnicodeExpr, FloatExpr,
-    OpExpr, UnaryExpr, IndexExpr, CastExpr, RevealTypeExpr, TypeApplication, ListExpr,
+    OpExpr, UnaryExpr, IndexExpr, CastExpr, RevealLocalsExpr, RevealTypeExpr, TypeApplication, ListExpr,
     TupleExpr, DictExpr, LambdaExpr, SuperExpr, SliceExpr, Context, Expression,
     ListComprehension, GeneratorExpr, SetExpr, MypyFile, Decorator,
     ConditionalExpr, ComparisonExpr, TempNode, SetComprehension,
@@ -1552,6 +1552,14 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         revealed_type = self.accept(expr.expr, type_context=self.type_context[-1])
         if not self.chk.current_node_deferred:
             self.msg.reveal_type(revealed_type, expr)
+        return revealed_type
+
+    def visit_reveal_locals_expr(self, expr: RevealLocalsExpr) -> Type:
+        """Type check a reveal_locals expression."""
+        print(f"TODO: Type Context is {self.type_context}")
+        revealed_type = self.accept(expr.expr, type_context=self.type_context[-1])
+        if not self.chk.current_node_deferred:
+            self.msg.reveal_locals(revealed_type, expr)
         return revealed_type
 
     def visit_type_application(self, tapp: TypeApplication) -> Type:

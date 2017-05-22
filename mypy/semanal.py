@@ -58,7 +58,7 @@ from mypy.nodes import (
     RaiseStmt, AssertStmt, OperatorAssignmentStmt, WhileStmt,
     ForStmt, BreakStmt, ContinueStmt, IfStmt, TryStmt, WithStmt, DelStmt, PassStmt,
     GlobalDecl, SuperExpr, DictExpr, CallExpr, RefExpr, OpExpr, UnaryExpr,
-    SliceExpr, CastExpr, RevealTypeExpr, TypeApplication, Context, SymbolTable,
+    SliceExpr, CastExpr, RevealLocalsExpr, RevealTypeExpr, TypeApplication, Context, SymbolTable,
     SymbolTableNode, TVAR, ListComprehension, GeneratorExpr,
     LambdaExpr, MDEF, FuncBase, Decorator, SetExpr, TypeVarExpr, NewTypeExpr,
     StrExpr, BytesExpr, PrintStmt, ConditionalExpr, PromoteExpr,
@@ -2825,6 +2825,11 @@ class SemanticAnalyzer(NodeVisitor):
             expr.analyzed.line = expr.line
             expr.analyzed.column = expr.column
             expr.analyzed.accept(self)
+        elif refers_to_fullname(expr.callee, 'builtins.reveal_locals'):
+            expr.analyzed = RevealLocalsExpr()
+            expr.analyzed.line = expr.line
+            expr.analyzed.column = expr.column
+            expr.analyzed.accept(self)
         elif refers_to_fullname(expr.callee, 'typing.Any'):
             # Special form Any(...) no longer supported.
             self.fail('Any(...) is no longer supported. Use cast(Any, ...) instead', expr)
@@ -3018,6 +3023,10 @@ class SemanticAnalyzer(NodeVisitor):
 
     def visit_reveal_type_expr(self, expr: RevealTypeExpr) -> None:
         expr.expr.accept(self)
+
+    def visit_reveal_locals_expr(self, expr: RevealTypeExpr) -> None:
+        # Reveal locals doesn't have an inner expression
+        pass
 
     def visit_type_application(self, expr: TypeApplication) -> None:
         expr.expr.accept(self)
@@ -3429,6 +3438,8 @@ class FirstPass(NodeVisitor):
                 ('None', NoneTyp()),
                 # reveal_type is a mypy-only function that gives an error with the type of its arg
                 ('reveal_type', AnyType()),
+                # reveal_locals is a mypy-only function that gives an error with the types of locals
+                ('reveal_locals', AnyType()),
             ]  # type: List[Tuple[str, Type]]
 
             # TODO(ddfisher): This guard is only needed because mypy defines
@@ -3658,10 +3669,11 @@ class ThirdPass(TraverserVisitor):
                 self.accept(d)
 
     def accept(self, node: Node) -> None:
-        try:
-            node.accept(self)
-        except Exception as err:
-            report_internal_error(err, self.errors.file, node.line, self.errors, self.options)
+        node.accept(self)
+        # try:
+        #     node.accept(self)
+        # except Exception as err:
+        #     report_internal_error(err, self.errors.file, node.line, self.errors, self.options)
 
     def visit_block(self, b: Block) -> None:
         if b.is_unreachable:
@@ -3750,6 +3762,10 @@ class ThirdPass(TraverserVisitor):
 
     def visit_reveal_type_expr(self, e: RevealTypeExpr) -> None:
         super().visit_reveal_type_expr(e)
+
+    def visit_reveal_locals_expr(self, e: RevealTypeExpr) -> None:
+        print(f"ThirdPass.visit_reveal_locals_expr: {e}")
+        super().visit_reveal_locals_expr(e)
 
     def visit_type_application(self, e: TypeApplication) -> None:
         for type in e.types:

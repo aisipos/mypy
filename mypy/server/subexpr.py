@@ -76,6 +76,11 @@ class SubexpressionFinder(TraverserVisitor):
         self.add(e)
         super().visit_reveal_type_expr(e)
 
+    def visit_reveal_locals_expr(self, e: RevealTypeExpr) -> None:
+        print(f"visit_reveal_locals_expr: {e}")
+        self.add(e)
+        super().visit_reveal_locals_expr(e)
+
     def visit_unary_expr(self, e: UnaryExpr) -> None:
         self.add(e)
         super().visit_unary_expr(e)

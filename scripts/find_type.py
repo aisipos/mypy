@@ -32,6 +32,9 @@ import re
 
 REVEAL_TYPE_START = 'reveal_type('
 REVEAL_TYPE_END = ')'
+REVEAL_LOCALS_START = 'reveal_locals('
+REVEAL_LOCALS_END = ')'
+
 
 def update_line(line: str, s: str, pos: int) -> str:
     return line[:pos] + s + line[pos:]

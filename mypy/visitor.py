@@ -81,6 +81,10 @@ class ExpressionVisitor(Generic[T]):
         pass
 
     @abstractmethod
+    def visit_reveal_locals_expr(self, o: 'mypy.nodes.RevealLocalsExpr') -> T:
+        pass
+
+    @abstractmethod
     def visit_super_expr(self, o: 'mypy.nodes.SuperExpr') -> T:
         pass
 
@@ -459,6 +463,9 @@ class NodeVisitor(Generic[T], ExpressionVisitor[T], StatementVisitor[T]):
         pass
 
     def visit_reveal_type_expr(self, o: 'mypy.nodes.RevealTypeExpr') -> T:
+        pass
+
+    def visit_reveal_locals_expr(self, o: 'mypy.nodes.RevealLocalsExpr') -> T:
         pass
 
     def visit_super_expr(self, o: 'mypy.nodes.SuperExpr') -> T:

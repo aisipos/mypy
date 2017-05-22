@@ -5,8 +5,8 @@ from mypy.nodes import (
     Block, MypyFile, FuncItem, CallExpr, ClassDef, Decorator, FuncDef,
     ExpressionStmt, AssignmentStmt, OperatorAssignmentStmt, WhileStmt,
     ForStmt, ReturnStmt, AssertStmt, DelStmt, IfStmt, RaiseStmt,
-    TryStmt, WithStmt, MemberExpr, OpExpr, SliceExpr, CastExpr, RevealTypeExpr,
-    UnaryExpr, ListExpr, TupleExpr, DictExpr, SetExpr, IndexExpr,
+    TryStmt, WithStmt, MemberExpr, OpExpr, SliceExpr, CastExpr, RevealLocalsExpr,
+    RevealTypeExpr, UnaryExpr, ListExpr, TupleExpr, DictExpr, SetExpr, IndexExpr,
     GeneratorExpr, ListComprehension, SetComprehension, DictionaryComprehension,
     ConditionalExpr, TypeApplication, ExecStmt, Import, ImportFrom,
     LambdaExpr, ComparisonExpr, OverloadedFuncDef, YieldFromExpr,
@@ -174,7 +174,12 @@ class TraverserVisitor(NodeVisitor[None]):
         o.expr.accept(self)
 
     def visit_reveal_type_expr(self, o: RevealTypeExpr) -> None:
+        print("visit_reveal_type_expr")
         o.expr.accept(self)
+
+    def visit_reveal_locals_expr(self, o: RevealLocalsExpr) -> None:
+        print("visit_reveal_locals_expr")
+        # RevealLocalsExpr doesn't have an inner expression
 
     def visit_unary_expr(self, o: UnaryExpr) -> None:
         o.expr.accept(self)
