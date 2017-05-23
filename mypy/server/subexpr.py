@@ -4,9 +4,10 @@ from typing import List
 
 from mypy.nodes import (
     Expression, Node, MemberExpr, YieldFromExpr, YieldExpr, CallExpr, OpExpr, ComparisonExpr,
-    SliceExpr, CastExpr, RevealTypeExpr, UnaryExpr, ListExpr, TupleExpr, DictExpr, SetExpr,
-    IndexExpr, GeneratorExpr, ListComprehension, SetComprehension, DictionaryComprehension,
-    ConditionalExpr, TypeApplication, LambdaExpr, StarExpr, BackquoteExpr, AwaitExpr,
+    SliceExpr, CastExpr, RevealTypeExpr, RevealLocalsExpr, UnaryExpr, ListExpr, TupleExpr,
+    DictExpr, SetExpr, IndexExpr, GeneratorExpr, ListComprehension, SetComprehension,
+    DictionaryComprehension, ConditionalExpr, TypeApplication, LambdaExpr, StarExpr,
+    BackquoteExpr, AwaitExpr,
 )
 from mypy.traverser import TraverserVisitor
 
@@ -76,7 +77,7 @@ class SubexpressionFinder(TraverserVisitor):
         self.add(e)
         super().visit_reveal_type_expr(e)
 
-    def visit_reveal_locals_expr(self, e: RevealTypeExpr) -> None:
+    def visit_reveal_locals_expr(self, e: RevealLocalsExpr) -> None:
         self.add(e)
         super().visit_reveal_locals_expr(e)
 

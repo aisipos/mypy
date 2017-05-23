@@ -390,7 +390,7 @@ class TransformVisitor(NodeVisitor[Node]):
         return RevealTypeExpr(self.expr(node.expr))
 
     def visit_reveal_locals_expr(self, node: RevealLocalsExpr) -> RevealLocalsExpr:
-        return RevealTypeExpr(self.expr(node.expr))
+        return node
 
     def visit_super_expr(self, node: SuperExpr) -> SuperExpr:
         new = SuperExpr(node.name)

@@ -14,8 +14,8 @@ from mypy.types import (
 from mypy.nodes import (
     NameExpr, RefExpr, Var, FuncDef, OverloadedFuncDef, TypeInfo, CallExpr,
     MemberExpr, IntExpr, StrExpr, BytesExpr, UnicodeExpr, FloatExpr,
-    OpExpr, UnaryExpr, IndexExpr, CastExpr, RevealLocalsExpr, RevealTypeExpr, TypeApplication, ListExpr,
-    TupleExpr, DictExpr, LambdaExpr, SuperExpr, SliceExpr, Context, Expression,
+    OpExpr, UnaryExpr, IndexExpr, CastExpr, RevealLocalsExpr, RevealTypeExpr, TypeApplication,
+    ListExpr, TupleExpr, DictExpr, LambdaExpr, SuperExpr, SliceExpr, Context, Expression,
     ListComprehension, GeneratorExpr, SetExpr, MypyFile, Decorator,
     ConditionalExpr, ComparisonExpr, TempNode, SetComprehension,
     DictionaryComprehension, ComplexExpr, EllipsisExpr, StarExpr, AwaitExpr, YieldExpr,
@@ -1554,11 +1554,14 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             self.msg.reveal_type(revealed_type, expr)
         return revealed_type
 
-    def visit_reveal_locals_expr(self, expr: RevealLocalsExpr) -> Dict[NameExpr, Instance]:
+    def visit_reveal_locals_expr(self, expr: RevealLocalsExpr) -> Type:
         """Type check a reveal_locals expression."""
         if not self.chk.current_node_deferred:
             self.msg.reveal_locals(self.chk.type_map, expr)
-        return self.chk.type_map
+        # TODO: Would like to return self.chk.type_map here, but need
+        # to return something compatible with Type, so just return Dict
+        # for now
+        return Type()
 
     def visit_type_application(self, tapp: TypeApplication) -> Type:
         """Type check a type application (expr[type, ...])."""

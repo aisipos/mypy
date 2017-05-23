@@ -3024,8 +3024,9 @@ class SemanticAnalyzer(NodeVisitor):
     def visit_reveal_type_expr(self, expr: RevealTypeExpr) -> None:
         expr.expr.accept(self)
 
-    def visit_reveal_locals_expr(self, expr: RevealTypeExpr) -> None:
-        # Reveal locals doesn't have an inner expression
+    def visit_reveal_locals_expr(self, expr: RevealLocalsExpr) -> None:
+        # Reveal locals doesn't have an inner expression, there's no
+        # need to traverse inside it
         pass
 
     def visit_type_application(self, expr: TypeApplication) -> None:
@@ -3438,7 +3439,8 @@ class FirstPass(NodeVisitor):
                 ('None', NoneTyp()),
                 # reveal_type is a mypy-only function that gives an error with the type of its arg
                 ('reveal_type', AnyType()),
-                # reveal_locals is a mypy-only function that gives an error with the types of locals
+                # reveal_locals is a mypy-only function that gives an error with the types of
+                # locals
                 ('reveal_locals', AnyType()),
             ]  # type: List[Tuple[str, Type]]
 
@@ -3762,7 +3764,7 @@ class ThirdPass(TraverserVisitor):
     def visit_reveal_type_expr(self, e: RevealTypeExpr) -> None:
         super().visit_reveal_type_expr(e)
 
-    def visit_reveal_locals_expr(self, e: RevealTypeExpr) -> None:
+    def visit_reveal_locals_expr(self, e: RevealLocalsExpr) -> None:
         super().visit_reveal_locals_expr(e)
 
     def visit_type_application(self, e: TypeApplication) -> None:
