@@ -1515,7 +1515,6 @@ class RevealTypeExpr(Expression):
         self.expr = expr
 
     def accept(self, visitor: ExpressionVisitor[T]) -> T:
-        print(f"RevealTypeExpr: Accepted from visitor: {visitor}")
         return visitor.visit_reveal_type_expr(self)
 
 
@@ -1528,7 +1527,6 @@ class RevealLocalsExpr(Expression):
         pass
 
     def accept(self, visitor: ExpressionVisitor[T]) -> T:
-        print(f"RevealLocalsExpr: Accepted from visitor: {visitor}")
         return visitor.visit_reveal_locals_expr(self)
 
 

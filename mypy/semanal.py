@@ -3669,11 +3669,10 @@ class ThirdPass(TraverserVisitor):
                 self.accept(d)
 
     def accept(self, node: Node) -> None:
-        node.accept(self)
-        # try:
-        #     node.accept(self)
-        # except Exception as err:
-        #     report_internal_error(err, self.errors.file, node.line, self.errors, self.options)
+        try:
+            node.accept(self)
+        except Exception as err:
+            report_internal_error(err, self.errors.file, node.line, self.errors, self.options)
 
     def visit_block(self, b: Block) -> None:
         if b.is_unreachable:
@@ -3764,7 +3763,6 @@ class ThirdPass(TraverserVisitor):
         super().visit_reveal_type_expr(e)
 
     def visit_reveal_locals_expr(self, e: RevealTypeExpr) -> None:
-        print(f"ThirdPass.visit_reveal_locals_expr: {e}")
         super().visit_reveal_locals_expr(e)
 
     def visit_type_application(self, e: TypeApplication) -> None:

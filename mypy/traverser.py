@@ -174,12 +174,11 @@ class TraverserVisitor(NodeVisitor[None]):
         o.expr.accept(self)
 
     def visit_reveal_type_expr(self, o: RevealTypeExpr) -> None:
-        print("visit_reveal_type_expr")
         o.expr.accept(self)
 
     def visit_reveal_locals_expr(self, o: RevealLocalsExpr) -> None:
-        print("visit_reveal_locals_expr")
         # RevealLocalsExpr doesn't have an inner expression
+        pass
 
     def visit_unary_expr(self, o: UnaryExpr) -> None:
         o.expr.accept(self)
