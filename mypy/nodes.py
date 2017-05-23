@@ -229,6 +229,160 @@ class SymbolNode(Node):
         raise NotImplementedError('unexpected .class {}'.format(classname))
 
 
+class SymbolTableNode:
+    # Kind of node. Possible values:
+    #  - LDEF: local definition (of any kind)
+    #  - GDEF: global (module-level) definition
+    #  - MDEF: class member definition
+    #  - TVAR: TypeVar(...) definition
+    #  - MODULE_REF: reference to a module
+    #  - TYPE_ALIAS: type alias
+    #  - UNBOUND_IMPORTED: temporary kind for imported names
+    kind = None  # type: int
+    # AST node of definition (FuncDef/Var/TypeInfo/Decorator/TypeVarExpr,
+    # or None for a bound type variable).
+    node = None  # type: Optional[SymbolNode]
+    # Module id (e.g. "foo.bar") or None
+    mod_id = ''  # type: Optional[str]
+    # If this not None, override the type of the 'node' attribute.
+    type_override = None  # type: Optional[mypy.types.Type]
+    # If False, this name won't be imported via 'from <module> import *'.
+    # This has no effect on names within classes.
+    module_public = True
+    # For deserialized MODULE_REF nodes, the referenced module name;
+    # for other nodes, optionally the name of the referenced object.
+    cross_ref = None  # type: Optional[str]
+    # Was this node created by normalіze_type_alias?
+    normalized = False  # type: bool
+
+    def __init__(self, kind: int, node: Optional[SymbolNode], mod_id: str = None,
+                 typ: 'mypy.types.Type' = None,
+                 module_public: bool = True, normalized: bool = False) -> None:
+        self.kind = kind
+        self.node = node
+        self.type_override = typ
+        self.mod_id = mod_id
+        self.module_public = module_public
+        self.normalized = normalized
+
+    @property
+    def fullname(self) -> Optional[str]:
+        if self.node is not None:
+            return self.node.fullname()
+        else:
+            return None
+
+    @property
+    def type(self) -> 'Optional[mypy.types.Type]':
+        # IDEA: Get rid of the Any type.
+        node = self.node  # type: Any
+        if self.type_override is not None:
+            return self.type_override
+        elif ((isinstance(node, Var) or isinstance(node, FuncDef))
+              and node.type is not None):
+            return node.type
+        elif isinstance(node, Decorator):
+            return node.var.type
+        else:
+            return None
+
+    def __str__(self) -> str:
+        s = '{}/{}'.format(node_kinds[self.kind], short_type(self.node))
+        if self.mod_id is not None:
+            s += ' ({})'.format(self.mod_id)
+        # Include declared type of variables and functions.
+        if self.type is not None:
+            s += ' : {}'.format(self.type)
+        return s
+
+    def serialize(self, prefix: str, name: str) -> JsonDict:
+        """Serialize a SymbolTableNode.
+
+        Args:
+          prefix: full name of the containing module or class; or None
+          name: name of this object relative to the containing object
+        """
+        data = {'.class': 'SymbolTableNode',
+                'kind': node_kinds[self.kind],
+                }  # type: JsonDict
+        if not self.module_public:
+            data['module_public'] = False
+        if self.kind == MODULE_REF:
+            assert self.node is not None, "Missing module cross ref in %s for %s" % (prefix, name)
+            data['cross_ref'] = self.node.fullname()
+        else:
+            if self.node is not None:
+                if prefix is not None:
+                    fullname = self.node.fullname()
+                    if (fullname is not None and '.' in fullname and
+                            fullname != prefix + '.' + name):
+                        data['cross_ref'] = fullname
+                        return data
+                data['node'] = self.node.serialize()
+            if self.type_override is not None:
+                data['type_override'] = self.type_override.serialize()
+        return data
+
+    @classmethod
+    def deserialize(cls, data: JsonDict) -> 'SymbolTableNode':
+        assert data['.class'] == 'SymbolTableNode'
+        kind = inverse_node_kinds[data['kind']]
+        if 'cross_ref' in data:
+            # This will be fixed up later.
+            stnode = SymbolTableNode(kind, None)
+            stnode.cross_ref = data['cross_ref']
+        else:
+            node = None
+            if 'node' in data:
+                node = SymbolNode.deserialize(data['node'])
+            typ = None
+            if 'type_override' in data:
+                typ = mypy.types.deserialize_type(data['type_override'])
+            stnode = SymbolTableNode(kind, node, typ=typ)
+        if 'module_public' in data:
+            stnode.module_public = data['module_public']
+        return stnode
+
+
+class SymbolTable(Dict[str, SymbolTableNode]):
+    def __str__(self) -> str:
+        a = []  # type: List[str]
+        for key, value in self.items():
+            # Filter out the implicit import of builtins.
+            if isinstance(value, SymbolTableNode):
+                if (value.fullname != 'builtins' and
+                        (value.fullname or '').split('.')[-1] not in
+                        implicit_module_attrs):
+                    a.append('  ' + str(key) + ' : ' + str(value))
+            else:
+                a.append('  <invalid item>')
+        a = sorted(a)
+        a.insert(0, 'SymbolTable(')
+        a[-1] += ')'
+        return '\n'.join(a)
+
+    def serialize(self, fullname: str) -> JsonDict:
+        data = {'.class': 'SymbolTable'}  # type: JsonDict
+        for key, value in self.items():
+            # Skip __builtins__: it's a reference to the builtins
+            # module that gets added to every module by
+            # SemanticAnalyzer.visit_file(), but it shouldn't be
+            # accessed by users of the module.
+            if key == '__builtins__':
+                continue
+            data[key] = value.serialize(fullname, key)
+        return data
+
+    @classmethod
+    def deserialize(cls, data: JsonDict) -> 'SymbolTable':
+        assert data['.class'] == 'SymbolTable'
+        st = SymbolTable()
+        for key, value in data.items():
+            if key != '.class':
+                st[key] = SymbolTableNode.deserialize(value)
+        return st
+
+
 class MypyFile(SymbolNode):
     """The abstract syntax tree of a single source file."""
 
@@ -2246,160 +2400,6 @@ class FakeInfo(TypeInfo):
 
     def __getattribute__(self, attr: str) -> None:
         raise AssertionError('De-serialization failure: TypeInfo not fixed')
-
-
-class SymbolTableNode:
-    # Kind of node. Possible values:
-    #  - LDEF: local definition (of any kind)
-    #  - GDEF: global (module-level) definition
-    #  - MDEF: class member definition
-    #  - TVAR: TypeVar(...) definition
-    #  - MODULE_REF: reference to a module
-    #  - TYPE_ALIAS: type alias
-    #  - UNBOUND_IMPORTED: temporary kind for imported names
-    kind = None  # type: int
-    # AST node of definition (FuncDef/Var/TypeInfo/Decorator/TypeVarExpr,
-    # or None for a bound type variable).
-    node = None  # type: Optional[SymbolNode]
-    # Module id (e.g. "foo.bar") or None
-    mod_id = ''  # type: Optional[str]
-    # If this not None, override the type of the 'node' attribute.
-    type_override = None  # type: Optional[mypy.types.Type]
-    # If False, this name won't be imported via 'from <module> import *'.
-    # This has no effect on names within classes.
-    module_public = True
-    # For deserialized MODULE_REF nodes, the referenced module name;
-    # for other nodes, optionally the name of the referenced object.
-    cross_ref = None  # type: Optional[str]
-    # Was this node created by normalіze_type_alias?
-    normalized = False  # type: bool
-
-    def __init__(self, kind: int, node: Optional[SymbolNode], mod_id: str = None,
-                 typ: 'mypy.types.Type' = None,
-                 module_public: bool = True, normalized: bool = False) -> None:
-        self.kind = kind
-        self.node = node
-        self.type_override = typ
-        self.mod_id = mod_id
-        self.module_public = module_public
-        self.normalized = normalized
-
-    @property
-    def fullname(self) -> Optional[str]:
-        if self.node is not None:
-            return self.node.fullname()
-        else:
-            return None
-
-    @property
-    def type(self) -> 'Optional[mypy.types.Type]':
-        # IDEA: Get rid of the Any type.
-        node = self.node  # type: Any
-        if self.type_override is not None:
-            return self.type_override
-        elif ((isinstance(node, Var) or isinstance(node, FuncDef))
-              and node.type is not None):
-            return node.type
-        elif isinstance(node, Decorator):
-            return node.var.type
-        else:
-            return None
-
-    def __str__(self) -> str:
-        s = '{}/{}'.format(node_kinds[self.kind], short_type(self.node))
-        if self.mod_id is not None:
-            s += ' ({})'.format(self.mod_id)
-        # Include declared type of variables and functions.
-        if self.type is not None:
-            s += ' : {}'.format(self.type)
-        return s
-
-    def serialize(self, prefix: str, name: str) -> JsonDict:
-        """Serialize a SymbolTableNode.
-
-        Args:
-          prefix: full name of the containing module or class; or None
-          name: name of this object relative to the containing object
-        """
-        data = {'.class': 'SymbolTableNode',
-                'kind': node_kinds[self.kind],
-                }  # type: JsonDict
-        if not self.module_public:
-            data['module_public'] = False
-        if self.kind == MODULE_REF:
-            assert self.node is not None, "Missing module cross ref in %s for %s" % (prefix, name)
-            data['cross_ref'] = self.node.fullname()
-        else:
-            if self.node is not None:
-                if prefix is not None:
-                    fullname = self.node.fullname()
-                    if (fullname is not None and '.' in fullname and
-                            fullname != prefix + '.' + name):
-                        data['cross_ref'] = fullname
-                        return data
-                data['node'] = self.node.serialize()
-            if self.type_override is not None:
-                data['type_override'] = self.type_override.serialize()
-        return data
-
-    @classmethod
-    def deserialize(cls, data: JsonDict) -> 'SymbolTableNode':
-        assert data['.class'] == 'SymbolTableNode'
-        kind = inverse_node_kinds[data['kind']]
-        if 'cross_ref' in data:
-            # This will be fixed up later.
-            stnode = SymbolTableNode(kind, None)
-            stnode.cross_ref = data['cross_ref']
-        else:
-            node = None
-            if 'node' in data:
-                node = SymbolNode.deserialize(data['node'])
-            typ = None
-            if 'type_override' in data:
-                typ = mypy.types.deserialize_type(data['type_override'])
-            stnode = SymbolTableNode(kind, node, typ=typ)
-        if 'module_public' in data:
-            stnode.module_public = data['module_public']
-        return stnode
-
-
-class SymbolTable(Dict[str, SymbolTableNode]):
-    def __str__(self) -> str:
-        a = []  # type: List[str]
-        for key, value in self.items():
-            # Filter out the implicit import of builtins.
-            if isinstance(value, SymbolTableNode):
-                if (value.fullname != 'builtins' and
-                        (value.fullname or '').split('.')[-1] not in
-                        implicit_module_attrs):
-                    a.append('  ' + str(key) + ' : ' + str(value))
-            else:
-                a.append('  <invalid item>')
-        a = sorted(a)
-        a.insert(0, 'SymbolTable(')
-        a[-1] += ')'
-        return '\n'.join(a)
-
-    def serialize(self, fullname: str) -> JsonDict:
-        data = {'.class': 'SymbolTable'}  # type: JsonDict
-        for key, value in self.items():
-            # Skip __builtins__: it's a reference to the builtins
-            # module that gets added to every module by
-            # SemanticAnalyzer.visit_file(), but it shouldn't be
-            # accessed by users of the module.
-            if key == '__builtins__':
-                continue
-            data[key] = value.serialize(fullname, key)
-        return data
-
-    @classmethod
-    def deserialize(cls, data: JsonDict) -> 'SymbolTable':
-        assert data['.class'] == 'SymbolTable'
-        st = SymbolTable()
-        for key, value in data.items():
-            if key != '.class':
-                st[key] = SymbolTableNode.deserialize(value)
-        return st
 
 
 class MroError(Exception):
