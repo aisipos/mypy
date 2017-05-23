@@ -19,7 +19,7 @@ from mypy.nodes import (
     TypeInfo, Context, MypyFile, op_methods, FuncDef, reverse_type_aliases,
     ARG_POS, ARG_OPT, ARG_NAMED, ARG_NAMED_OPT, ARG_STAR, ARG_STAR2
 )
-
+from mypy.nodes import NameExpr
 
 # Constants that represent simple type checker error message, i.e. messages
 # that do not have any parameters.
@@ -849,8 +849,10 @@ class MessageBuilder:
     def reveal_type(self, typ: Type, context: Context) -> None:
         self.fail('Revealed type is \'{}\''.format(typ), context)
 
-    def reveal_locals(self, typ: Type, context: Context) -> None:
-        self.fail('TODO: reveal locals is'.format(typ), context)
+    def reveal_locals(self, type_map: Dict[NameExpr, Instance], context: Context) -> None:
+        # Pull out all the types of just the NameExpr instances
+        d = {k.name: v for k, v in type_map.items() if isinstance(k, NameExpr)}
+        self.fail('Reveal local types are \'{}\''.format(d), context)
 
     def unsupported_type_type(self, item: Type, context: Context) -> None:
         self.fail('Unsupported type Type[{}]'.format(self.format(item)), context)

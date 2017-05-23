@@ -1554,13 +1554,11 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             self.msg.reveal_type(revealed_type, expr)
         return revealed_type
 
-    def visit_reveal_locals_expr(self, expr: RevealLocalsExpr) -> Type:
+    def visit_reveal_locals_expr(self, expr: RevealLocalsExpr) -> Dict[NameExpr, Instance]:
         """Type check a reveal_locals expression."""
-        print(f"TODO: Type Context is {self.type_context}")
-        revealed_type = self.accept(expr.expr, type_context=self.type_context[-1])
         if not self.chk.current_node_deferred:
-            self.msg.reveal_locals(revealed_type, expr)
-        return revealed_type
+            self.msg.reveal_locals(self.chk.type_map, expr)
+        return self.chk.type_map
 
     def visit_type_application(self, tapp: TypeApplication) -> Type:
         """Type check a type application (expr[type, ...])."""
