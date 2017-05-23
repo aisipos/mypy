@@ -412,6 +412,9 @@ class StrConv(NodeVisitor[str]):
     def visit_reveal_type_expr(self, o: 'mypy.nodes.RevealTypeExpr') -> str:
         return self.dump([o.expr], o)
 
+    def visit_reveal_locals_expr(self, o: 'mypy.nodes.RevealLocalsExpr') -> str:
+        return self.dump([o], o)
+
     def visit_unary_expr(self, o: 'mypy.nodes.UnaryExpr') -> str:
         return self.dump([o.op, o.expr], o)
 
