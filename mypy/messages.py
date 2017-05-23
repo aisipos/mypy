@@ -852,7 +852,7 @@ class MessageBuilder:
     def reveal_locals(self, type_map: Dict[Expression, Type], context: Context) -> None:
         # Pull out all the types of just the NameExpr instances
         d = {k.name: v for k, v in type_map.items() if isinstance(k, NameExpr)}
-        self.fail('Reveal local types are \'{}\''.format(d), context)
+        self.fail('Revealed local types are \'{}\''.format(d), context)
 
     def unsupported_type_type(self, item: Type, context: Context) -> None:
         self.fail('Unsupported type Type[{}]'.format(self.format(item)), context)
