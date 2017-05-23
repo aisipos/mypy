@@ -2826,7 +2826,7 @@ class SemanticAnalyzer(NodeVisitor):
             expr.analyzed.column = expr.column
             expr.analyzed.accept(self)
         elif refers_to_fullname(expr.callee, 'builtins.reveal_locals'):
-            expr.analyzed = RevealLocalsExpr()
+            expr.analyzed = RevealLocalsExpr(self.locals)
             expr.analyzed.line = expr.line
             expr.analyzed.column = expr.column
             expr.analyzed.accept(self)

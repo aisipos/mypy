@@ -1675,10 +1675,10 @@ class RevealTypeExpr(Expression):
 class RevealLocalsExpr(Expression):
     """Reveal types of locals reveal_locals()."""
 
-    expr = None  # type: Expression
+    local_vars = None  # type: List[SymbolTable]
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, local_vars: List[SymbolTable]) -> None:
+        self.local_vars = local_vars
 
     def accept(self, visitor: ExpressionVisitor[T]) -> T:
         return visitor.visit_reveal_locals_expr(self)
